@@ -7,6 +7,27 @@
 // TODO: Data type consistency
 // TODO: Columns can be bigger than size_t
 // TODO: Add tests
+// TODO: Configure CMake
+
+namespace {
+	// From https://stackoverflow.com/a/4956493/15394064
+	template <typename T>
+	T swap_endian(T u) {
+		static_assert (CHAR_BIT == 8, "CHAR_BIT != 8");
+
+		union {
+			T u;
+			unsigned char u8[sizeof(T)];
+		} source, dest;
+
+		source.u = u;
+
+		for (size_t k = 0; k < sizeof(T); k++)
+			dest.u8[k] = source.u8[sizeof(T) - k - 1];
+
+		return dest.u;
+	}
+}
 
 namespace Idxcpp {
 
@@ -19,24 +40,41 @@ namespace Idxcpp {
 		Double		  = 0x0E  // 4 bytes
 	};
 
+	class IdxAccessor {
+	friend class Idx;
+	public:
+		IdxAccessor operator[](int i);
+	private:
+		Idx* idx;
+	};
+
 	class Idx {
 	public:
 		explicit Idx(std::filesystem::path path);
 		~Idx();
 
+		IdxAccessor operator[](int i) const;
+
+		// Returns the number of rows
+		std::uint32_t getRows() const noexcept { return dimensions[0]; }
+		// Returns the number of columns
+		size_t getColumns() const noexcept { return columns; }
+
 		// Copy semantics
-		Idx(const Idx&);
-		Idx& operator=(const Idx&);
+		Idx(const Idx&)				   = default;
+		Idx& operator=(const Idx&)	   = default;
 
 		// Move semantics
-		Idx(Idx&&) noexcept;
-		Idx& operator=(Idx&&) noexcept;
+		Idx(Idx&&) noexcept			   = default;
+		Idx& operator=(Idx&&) noexcept = default;
 
 	private:
 		IdxDataType dataType;
 		std::vector<char> data;
-		std::uint64_t rows;
+		std::vector<std::uint32_t> dimensions;
 		std::size_t columns;
+
+		int dataTypeSize() const noexcept;
 	};
 
 	Idx::Idx(std::filesystem::path path) {
@@ -53,39 +91,51 @@ namespace Idxcpp {
 		if (!f.good())
 			throw std::exception("Could not read the IDX magic number!");
 
-		dataType		= static_cast<IdxDataType>(mnumber[0]); // 3rd byte is the data type
-		char nDimensions = mnumber[1];							// 4th byte is the number of dimensions
+		dataType		 = static_cast<IdxDataType>(mnumber[0]); // 3rd byte is the data type
+		char nDimensions = mnumber[1];							 // 4th byte is the number of dimensions
+		dimensions.resize(nDimensions);
 
-		std::vector<char> dimensions(nDimensions * 4);			// Each dimension size is represented with 4 bytes
+		// Each dimension size is represented with 4 bytes
 		f.seekg(4);
-		f.read(dimensions.data(), nDimensions * 4);
+		f.read((char*)dimensions.data(), nDimensions * 4);		 // 1st dimension will be the rows
 
-		memcpy(&rows, dimensions.data(), sizeof rows);			// 1st dimension will be the rows
-
-		columns = 1;
-		for (int i = 1; i < nDimensions; i++) {					// 2nd dimension and higher dimensions are represented together as columns
-			std::uint64_t dimensionSize;
-			memcpy(&dimensionSize, dimensions.data() + i * sizeof dimensionSize, sizeof dimensionSize);
-			columns *= dimensionSize;
+		for (auto& dim : dimensions) {							 // Data is in big-endian
+			dim = swap_endian<std::uint32_t>(dim);
 		}
 
+		columns = 1;
+		for (int i = 1; i < nDimensions; i++) {					 // 2nd dimension and higher dimensions are represented together as columns
+			columns *= dimensions[i];
+		}
 
+		int typeSize = dataTypeSize();
+		size_t dataSize = typeSize * getRows() * columns;
+		data.resize(dataSize);
+		f.seekg(4 + nDimensions * 4);
+		f.read(data.data(), dataSize);
 	}
 
 	Idx::~Idx() {
+
 	}
 
-	inline Idx::Idx(const Idx&) {
+	inline IdxAccessor Idx::operator[](int i) const {
+		
 	}
 
-	inline Idx& Idx::operator=(const Idx&) {
-		// TODO: insert return statement here
-	}
+	inline int Idx::dataTypeSize() const noexcept {
+		switch (dataType) {
+		case Unsigned_Byte:
+			return 1;
+			break;
+		case Byte:
+			return 1;
+			break;
+		case Short:
+			return 2;
+			break;
 
-	inline Idx::Idx(Idx&&) noexcept {
-	}
-
-	inline Idx& Idx::operator=(Idx&&) noexcept {
-		// TODO: insert return statement here
+		return 4;
+		}
 	}
 }
