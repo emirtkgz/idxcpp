@@ -14,6 +14,8 @@ Data is stored internally as a single dimensional vector. You can access the eac
 
 From test/mnist_test/main.cpp
 ```c++
+using namespace Idxcpp;
+
 // Make sure your current working directory is correct
 std::cout << std::filesystem::current_path() << std::endl;	
 Idx trainData(".\\data\\train-images.idx3-ubyte");
