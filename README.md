@@ -63,6 +63,15 @@ Result:
 00000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000
 ```
+## Backwards Compability
+If you do not want to use C++17 or higher in your project, that's fine!  
+Just make sure to define the macro BEFORE including the idxcpp.hpp
+```c++
+#define IDXCPP_CPP_BACKWARDS_COMPABILITY
+#include <idxcpp.hpp>
+```
+
+
 ## Buy Me a Coffee
 ### Bitcoin
 bc1q9a5fjyx0g5ccm2k2sa5hr3wf04s7g9m2x22p75<br/>

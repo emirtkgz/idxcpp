@@ -3,15 +3,21 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 // TODO: Add a flag for endianness
 // TODO: Data type consistency
 // TODO: Columns can be bigger than size_t
-// TODO: Add tests
-// TODO: Configure CMake
+// TODO: Add more tests
 // TODO: Data endianness
 // TODO: Optimize
 // TODO: Backward c++ compability
+
+#ifdef IDXCPP_CPP_BACKWARDS_COMPABILITY
+#define IDXCPP_PATH const std::string&
+#else
+#define IDXCPP_PATH std::filesystem::path
+#endif
 
 namespace {
 	// From https://stackoverflow.com/a/4956493/15394064
@@ -86,7 +92,7 @@ namespace Idxcpp {
 	class Idx {
 	friend class IdxAccessor;
 	public:
-		explicit Idx(std::filesystem::path path);
+		explicit Idx(IDXCPP_PATH path);
 		~Idx() = default;
 
 		IdxAccessor operator[](int i);
@@ -120,7 +126,7 @@ namespace Idxcpp {
 		int dataTypeSize() const noexcept;
 	};
 
-	Idx::Idx(std::filesystem::path path) {
+	Idx::Idx(IDXCPP_PATH path) {
 
 		std::ifstream f(path, std::ios::binary);
 		if (!f.is_open())
