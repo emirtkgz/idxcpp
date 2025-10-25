@@ -3,7 +3,7 @@ A modern header-only C++ library for loading idx files like MNIST dataset
 
 ## Building
 No need for additional building, this is a header only library.
-```
+```c++
 #include <idxcpp.hpp>
 ```
 That's it! Just make sure you build your project with C++17 or higher.
@@ -13,7 +13,7 @@ It's quite simple to use!
 Data is stored internally as a single dimensional vector. You can access the each element with [] operator and cast the pointer to a suitable type.
 
 From test/mnist_test/main.cpp
-```
+```c++
 // Make sure your current working directory is correct
 std::cout << std::filesystem::current_path() << std::endl;	
 Idx trainData(".\\data\\train-images.idx3-ubyte");
