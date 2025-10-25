@@ -9,7 +9,7 @@ No need for additional building, this is a header only library.
 That's it! Just make sure you build your project with C++17 or higher.
 
 ## Usage
-It's quite simple to use \n
+It's quite simple to use!  
 Data is stored internally as a single dimensional vector. You can access the each element with [] operator and cast the pointer to a suitable type.
 
 From test/mnist_test/main.cpp
