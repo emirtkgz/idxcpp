@@ -2,12 +2,16 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 
 // TODO: Add a flag for endianness
 // TODO: Data type consistency
 // TODO: Columns can be bigger than size_t
 // TODO: Add tests
 // TODO: Configure CMake
+// TODO: Data endianness
+// TODO: Optimize
+// TODO: Backward c++ compability
 
 namespace {
 	// From https://stackoverflow.com/a/4956493/15394064
@@ -31,6 +35,10 @@ namespace {
 
 namespace Idxcpp {
 
+	// Forward declarations
+	class Idx;
+	class IdxAccessor;
+
 	enum IdxDataType {
 		Unsigned_Byte = 0x08, // 1 Byte
 		Byte		  = 0x09, // 1 Byte
@@ -43,22 +51,57 @@ namespace Idxcpp {
 	class IdxAccessor {
 	friend class Idx;
 	public:
+		IdxAccessor(Idx* idx, int scope, int i, char* ptr);
+		~IdxAccessor() = default;
+		
+		size_t getSize() const noexcept { return size; }
+
+		void printData() const noexcept;
+
 		IdxAccessor operator[](int i);
+
+		// Conversion operators
+		operator unsigned char* () { return reinterpret_cast<unsigned char*>(ptr); }
+		operator char* ()		   { return ptr; }
+		operator short* ()		   { return reinterpret_cast<short*>(ptr); }
+		operator int* ()		   { return reinterpret_cast<int*>(ptr); }
+		operator float* ()		   { return reinterpret_cast<float*>(ptr); }
+		operator double* ()		   { return reinterpret_cast<double*>(ptr); }
+
+
+		// Copy semantics
+		IdxAccessor(const IdxAccessor&)			   = default;
+		IdxAccessor& operator=(const IdxAccessor&) = default;
+
+		// Move semantics
+		IdxAccessor(IdxAccessor&&) noexcept			   = default;
+		IdxAccessor& operator=(IdxAccessor&&) noexcept = default;
 	private:
 		Idx* idx;
+		int scope;
+		char* ptr;
+		size_t size;
 	};
 
 	class Idx {
+	friend class IdxAccessor;
 	public:
 		explicit Idx(std::filesystem::path path);
-		~Idx();
+		~Idx() = default;
 
-		IdxAccessor operator[](int i) const;
+		IdxAccessor operator[](int i);
 
 		// Returns the number of rows
 		std::uint32_t getRows() const noexcept { return dimensions[0]; }
 		// Returns the number of columns
 		size_t getColumns() const noexcept { return columns; }
+		// Returns the vector holding the size of each dimension
+		const std::vector<std::uint32_t>& getDimensions() const noexcept { return dimensions; }
+		// Returns the data type (IdxDataType Enum)
+		IdxDataType getDataType() const noexcept { return dataType; }
+		// Returns the vector holding the data
+		std::vector<char>& getData() noexcept { return data; }
+
 
 		// Copy semantics
 		Idx(const Idx&)				   = default;
@@ -115,12 +158,8 @@ namespace Idxcpp {
 		f.read(data.data(), dataSize);
 	}
 
-	Idx::~Idx() {
-
-	}
-
-	inline IdxAccessor Idx::operator[](int i) const {
-		
+	inline IdxAccessor Idx::operator[](int i) {
+		return IdxAccessor(this, 1, i, data.data());
 	}
 
 	inline int Idx::dataTypeSize() const noexcept {
@@ -137,5 +176,24 @@ namespace Idxcpp {
 
 		return 4;
 		}
+	}
+
+	IdxAccessor::IdxAccessor(Idx* idx, int scope, int i, char* ptr) : idx(idx), scope(scope), size(1), ptr(ptr) {
+		for (int j = scope; j < idx->getDimensions().size(); j++) {
+			size *= idx->getDimensions()[j];
+		}
+
+		this->ptr += i * size;
+	}
+
+	// Intended for debug purposes
+	inline void IdxAccessor::printData() const noexcept {
+		for (int i = 0; i < size; i++) {
+			std::cout << *((char*)ptr + i) << std::endl;
+		}
+	}
+
+	inline IdxAccessor IdxAccessor::operator[](int i) {
+		return IdxAccessor(idx, scope + 1, i, ptr);
 	}
 }
